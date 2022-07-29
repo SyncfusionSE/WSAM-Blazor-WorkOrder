@@ -1,0 +1,91 @@
+﻿@page "/"
+
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.Inputs
+@using Syncfusion.Blazor.Calendars
+@using Microsoft.AspNetCore.Components.Forms;
+@using System.ComponentModel.DataAnnotations;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+@inject NavigationManager NavigationManager
+<SfButton Content="Add Work Order" @onclick="AddWorkOrder"></SfButton>
+<SfGrid @ref="GridRef" DataSource="@Orders" AllowPaging="true">
+    <GridEditSettings AllowAdding="true" NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
+    <GridPageSettings PageSize="5"></GridPageSettings>
+    <GridColumns>
+        <GridColumn Field=@nameof(Order.Title) HeaderText="Order Title" Width="120"></GridColumn>
+        <GridColumn Field=@nameof(Order.OrderDate) HeaderText="Order Date" Format="d" Type="ColumnType.Date" TextAlign="TextAlign.Right" Width="130"></GridColumn>
+        <GridColumn Field=@nameof(Order.Description) HeaderText="Summary" Width="120"></GridColumn>
+        <GridColumn Field=@nameof(Order.EstimatedHours) HeaderText="Esitmated Hours" Width="150"></GridColumn>
+    </GridColumns>
+</SfGrid>
+<SfDialog Visible="Visibility" IsModal="true" Height="450px" Width="300px" ShowCloseIcon="true">
+    <DialogTemplates>
+        <Header> New Work Order </Header>
+        <Content>
+            <EditForm Model="@NewOrder" OnValidSubmit="@SaveWorkOrder">
+                <DataAnnotationsValidator />
+                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Title" @bind-Value="@NewOrder.Title"></SfTextBox>
+                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Description" @bind-Value="@NewOrder.Description"></SfTextBox>
+                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Location" @bind-Value="@NewOrder.Location"></SfTextBox>
+                <SfDatePicker TValue="DateTime" FloatLabelType="FloatLabelType.Always" Placeholder="Order Date" @bind-Value="@NewOrder.OrderDate"></SfDatePicker>
+                <SfNumericTextBox TValue="int" FloatLabelType="FloatLabelType.Always" Placeholder="Estimated hours" @bind-Value="@NewOrder.EstimatedHours" Max="10" Min="1"></SfNumericTextBox>
+            </EditForm>
+        </Content>
+    </DialogTemplates>
+    <DialogButtons>
+        <DialogButton IsPrimary="true" Content="Add" OnClick="@SaveWorkOrder" />
+    </DialogButtons>
+
+</SfDialog>
+
+@code{
+    public bool Visibility = false;
+    public Order NewOrder = new Order();
+    public SfGrid<Order> GridRef;
+    public async Task SaveWorkOrder()
+    {
+        NewOrder.OrderID = Guid.NewGuid();
+        Orders.Add(NewOrder);
+        Visibility = false;
+        await localStorage.SetItemAsync<Order>("NewOrder", NewOrder);
+        Order storedData = await localStorage.GetItemAsync<Order>("NewOrder");
+        await GridRef.AddRecordAsync(NewOrder);
+        NewOrder = new Order();
+    }
+    void AddWorkOrder()
+    {
+        Visibility = true;
+    }
+    public List<Order> Orders { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Orders = new List<Order>
+{
+            new Order { OrderID= Guid.NewGuid(), Title="xxx", Description="zzz", Location="yyy", OrderDate=new DateTime(2022, 07, 07), EstimatedHours= 2 },
+            new Order { OrderID= Guid.NewGuid(), Title="xxx", Description="zzz", Location="yyy", OrderDate=new DateTime(2022, 07, 07), EstimatedHours= 3 },
+            new Order { OrderID= Guid.NewGuid(), Title="xxx", Description="zzz", Location="yyy", OrderDate=new DateTime(2022, 07, 07), EstimatedHours= 4 },
+            new Order { OrderID= Guid.NewGuid(), Title="xxx", Description="zzz", Location="yyy", OrderDate=new DateTime(2022, 07, 07), EstimatedHours= 4 },
+            new Order { OrderID= Guid.NewGuid(), Title="xxx", Description="zzz", Location="yyy", OrderDate=new DateTime(2022, 07, 07), EstimatedHours= 2 },
+            new Order { OrderID= Guid.NewGuid(), Title="xxx", Description="zzz", Location="yyy", OrderDate=new DateTime(2022, 07, 07), EstimatedHours= 3 },
+        };
+    }
+
+    public class Order
+    {
+        public Guid OrderID { get; set; }
+        [Required]
+        public string Title { get; set; }
+        [Required]
+        public string Description { get; set; }
+        [Required]
+        public string Location { get; set; }
+        public string Status { get; set; }
+        [Required]
+        public int EstimatedHours { get; set; }
+        public DateTime OrderDate { get; set; } = DateTime.Now.Date;
+    }
+}

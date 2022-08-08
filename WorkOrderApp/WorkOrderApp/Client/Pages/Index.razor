@@ -1,0 +1,82 @@
+﻿@page "/"
+
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Data
+@using Syncfusion.Blazor
+@using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.Inputs
+@using Syncfusion.Blazor.Calendars
+@using Microsoft.AspNetCore.Components.Forms;
+@using System.ComponentModel.DataAnnotations;
+@using WorkOrderApp.Shared.Models
+
+@inject NavigationManager NavigationManager
+<SfButton Content="Add Work Order" @onclick="AddWorkOrder"></SfButton>
+<SfGrid @ref="GridRef" TValue="WorkOrder" AllowPaging="true">
+    <SfDataManager Url="/api/WorkOrders" Adaptor="Adaptors.WebApiAdaptor"></SfDataManager>
+    <GridEditSettings AllowAdding="true" NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
+    <GridPageSettings PageSize="5"></GridPageSettings>
+    <GridColumns>
+        <GridColumn Field=@nameof(WorkOrder.Title) HeaderText="Order Title" Width="120"></GridColumn>
+        <GridColumn Field=@nameof(WorkOrder.OrderDate) HeaderText="Order Date" Format="d" Type="ColumnType.Date" TextAlign="TextAlign.Right" Width="130"></GridColumn>
+        <GridColumn Field=@nameof(WorkOrder.Description) HeaderText="Summary" Width="120"></GridColumn>
+        <GridColumn Field=@nameof(WorkOrder.EstimatedHours) HeaderText="Esitmated Hours" Width="150"></GridColumn>
+    </GridColumns>
+</SfGrid>
+<SfDialog Visible="Visibility" IsModal="true" Height="450px" Width="300px" ShowCloseIcon="true">
+    <DialogTemplates>
+        <Header> New Work Order </Header>
+        <Content>
+            <EditForm Model="@NewOrder" OnValidSubmit="@SaveWorkOrder">
+                <DataAnnotationsValidator />
+                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Title" @bind-Value="@NewOrder.Title"></SfTextBox>
+                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Description" @bind-Value="@NewOrder.Description"></SfTextBox>
+                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Location" @bind-Value="@NewOrder.Location"></SfTextBox>
+                <SfDatePicker TValue="DateTime?" FloatLabelType="FloatLabelType.Always" Placeholder="Order Date" @bind-Value="@NewOrder.OrderDate"></SfDatePicker>
+                <SfNumericTextBox TValue="int?" FloatLabelType="FloatLabelType.Always" Placeholder="Estimated hours" @bind-Value="@NewOrder.EstimatedHours" Max="10" Min="1"></SfNumericTextBox>
+            </EditForm>
+        </Content>
+    </DialogTemplates>
+    <DialogButtons>
+        <DialogButton IsPrimary="true" Content="Add" OnClick="@SaveWorkOrder" />
+    </DialogButtons>
+
+</SfDialog>
+
+@code{
+    public bool Visibility = false;
+    public WorkOrder NewOrder = new WorkOrder();
+    public SfGrid<WorkOrder> GridRef;
+    public async Task SaveWorkOrder()
+    {
+        NewOrder.OrderId = Guid.NewGuid();
+        Orders.Add(NewOrder);
+        Visibility = false;
+        //await localStorage.SetItemAsync<Order>("NewOrder", NewOrder);
+        //Order storedData = await localStorage.GetItemAsync<Order>("NewOrder");
+        await GridRef.AddRecordAsync(NewOrder);
+        NewOrder = new WorkOrder();
+    }
+    void AddWorkOrder()
+    {
+        Visibility = true;
+    }
+    public List<WorkOrder> Orders { get; set; }
+
+
+    public class Order
+    {
+        public Guid OrderID { get; set; }
+        [Required]
+        public string Title { get; set; }
+        [Required]
+        public string Description { get; set; }
+        [Required]
+        public string Location { get; set; }
+        public string Status { get; set; }
+        [Required]
+        public int EstimatedHours { get; set; }
+        public DateTime OrderDate { get; set; } = DateTime.Now.Date;
+    }
+}

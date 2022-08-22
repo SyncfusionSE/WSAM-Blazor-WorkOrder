@@ -21,7 +21,7 @@ namespace WorkOrderApp.Server.Controllers
         [HttpGet]
         public object Get()
         {
-            return new { Items = _context.WorkOrder, Count = _context.WorkOrder.Count() };
+            return _context.WorkOrder;
         }
 
         //// POST api/<BooksController>

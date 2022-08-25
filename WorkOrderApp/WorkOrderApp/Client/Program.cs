@@ -9,6 +9,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Syncfusion.Blazor;
 using Blazored.LocalStorage;
+//using WorkOrderApp.Shared.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace WorkOrderApp.Client
 {
@@ -18,8 +20,13 @@ namespace WorkOrderApp.Client
         {
             var builder = WebAssemblyHostBuilder.CreateDefault(args);
             builder.RootComponents.Add<App>("#app");
-
+            
+           
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+            //builder.Services.AddScoped<WorkOrderData>();
+            //builder.Services.AddSingleton<WorkOrder>();
+            //builder.Services.AddDbContext<OrderDataContext>(option =>
+            //    option.UseSqlServer(builder.Configuration.GetConnectionString("WorkOrder")));
             builder.Services.AddSyncfusionBlazor();
             builder.Services.AddBlazoredLocalStorage();
             await builder.Build().RunAsync();

@@ -1,17 +1,13 @@
 ﻿@page "/"
 
-@using Newtonsoft.Json;
 @using Syncfusion.Blazor.Grids
 @using Syncfusion.Blazor.Buttons
-@using Syncfusion.Blazor.Data
-@using Syncfusion.Blazor
 @using Syncfusion.Blazor.Popups
 @using Syncfusion.Blazor.Inputs
 @using Syncfusion.Blazor.Calendars
 @using Microsoft.AspNetCore.Components.Forms;
-@using System.ComponentModel.DataAnnotations;
 @using WorkOrderApp.Shared.Models
-@using Blazored.LocalStorage
+@inject HttpClient Http
 
 @inject Blazored.LocalStorage.ILocalStorageService localStorage
 
@@ -19,7 +15,6 @@
 <SfButton Content="Add Work Order" @onclick="AddWorkOrder"></SfButton>
 <SfButton Content="Update Work Order" @onclick="UpdateWorkOrder"></SfButton>
 <SfGrid @ref="GridRef" TValue="WorkOrder" AllowPaging="true" DataSource="OrderData">
-    @*<SfDataManager Url="/api/WorkOrders" Adaptor="Adaptors.WebApiAdaptor"></SfDataManager>*@
     <GridEditSettings AllowAdding="true" NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
     <GridPageSettings PageSize="5"></GridPageSettings>
     <GridColumns>
@@ -52,34 +47,36 @@
 @code{
     public bool Visibility = false;
     public WorkOrder NewOrder = new WorkOrder();
+    public List<WorkOrder> NewOrder1 = new List<WorkOrder>();
     public SfGrid<WorkOrder> GridRef;
     public async Task SaveWorkOrder()
     {
-        NewOrder.OrderId = Guid.NewGuid();
-        //Orders.Add(NewOrder);
+
         Visibility = false;
-        await localStorage.SetItemAsync<WorkOrder>("NewOrder", NewOrder);
-        await GridRef.AddRecordAsync(NewOrder);
+        NewOrder.OrderId = Guid.NewGuid();
+        NewOrder1.Add(NewOrder);
+        await localStorage.SetItemAsync<List<WorkOrder>>("NewOrder", NewOrder1);
+        await GridRef.AddRecordAsync(NewOrder1[0]);
         NewOrder = new WorkOrder();
     }
     void AddWorkOrder()
     {
         Visibility = true;
     }
+
     async Task UpdateWorkOrder()
     {
-        WorkOrder storedData = await localStorage.GetItemAsync<WorkOrder>("NewOrder");
-        //need to update the data to database.
 
+
+        List<WorkOrder> storedData = await localStorage.GetItemAsync<List<WorkOrder>>("NewOrder");
+        await Http.PostAsJsonAsync<List<WorkOrder>>("WeatherForecast", storedData);
     }
-    public List<WorkOrder> OrderData { get; set; }
-    HttpClient client = new HttpClient();
-    string baseUrl = "https://localhost:44378/";
-    protected override async Task OnInitializedAsync()
 
+    public List<WorkOrder> OrderData { get; set; }
+    protected override async Task OnInitializedAsync()
     {
-        var json = await client.GetStringAsync($"{baseUrl}api/WorkOrders");
-        OrderData = JsonConvert.DeserializeObject<List<WorkOrder>>(json);
+        OrderData = await Http.GetFromJsonAsync<List<WorkOrder>>("WeatherForecast");
+
     }
 
 }

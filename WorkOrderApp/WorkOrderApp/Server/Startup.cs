@@ -1,3 +1,4 @@
+using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -7,6 +8,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Linq;
+using WorkOrderApp.Shared.Models;
+
 //using WorkOrderApp.Shared.Models;
 
 namespace WorkOrderApp.Server
@@ -26,11 +29,23 @@ namespace WorkOrderApp.Server
         {
             services.AddControllersWithViews();
             services.AddRazorPages();
+            services.AddDbContext<OrderDataContext>(o =>
+            {
+                o.UseSqlite("Data Source=database.db")
+                    .LogTo(Console.WriteLine);
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            using (var scope = app.ApplicationServices.CreateScope())
+            {
+                // run the database migrations
+                var db = scope.ServiceProvider.GetRequiredService<OrderDataContext>();
+                db.Database.Migrate();
+            }
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();

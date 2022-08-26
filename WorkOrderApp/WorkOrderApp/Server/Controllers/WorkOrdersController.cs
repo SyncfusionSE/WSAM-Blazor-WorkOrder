@@ -1,9 +1,9 @@
-﻿
-
+﻿using System.Collections.Generic;
 using WorkOrderApp.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace WorkOrderApp.Server.Controllers
 {
@@ -11,47 +11,29 @@ namespace WorkOrderApp.Server.Controllers
     [ApiController]
     public class WorkOrdersController : ControllerBase
     {
-        private OrderDataContext _context;
-        public WorkOrdersController(OrderDataContext context)
+        private readonly OrderDataContext _db;
+
+        public WorkOrdersController(OrderDataContext db)
         {
-            _context = context;
+            _db = db;
         }
 
-        // GET: api/<WorkOrderController>
-        [HttpGet]
-        public object Get()
+        [HttpGet, Route("")]
+        public IEnumerable<WorkOrder> Get()
         {
-            return _context.WorkOrder;
+            return _db.WorkOrder.ToList();
         }
 
-        //// POST api/<BooksController>
-        //[HttpPost]
-        //public void Post([FromBody] Book book)
-        //{
-        //    _context.Books.Add(book);
-        //    _context.SaveChanges();
-        //}
+        [HttpPost, Route("")]
+        public async Task<ActionResult<List<WorkOrder>>> Post([FromBody] List<WorkOrder> value)
+        {
+            // change the status to "Saved"
+            value.ForEach(x => x.Status = "Saved");
+            _db.WorkOrder.AddRange(value);
+            await _db.SaveChangesAsync();
 
-        //// PUT api/<BooksController>
-        //[HttpPut]
-        //public void Put(long id, [FromBody] Book book)
-        //{
-        //    Book _book = _context.Books.Where(x => x.Id.Equals(book.Id)).FirstOrDefault();
-        //    _book.Name = book.Name;
-        //    _book.Author = book.Author;
-        //    _book.Price = book.Price;
-        //    _book.Quantity = book.Quantity;
-        //    _book.Available = book.Available;
-        //    _context.SaveChanges();
-        //}
-
-        //// DELETE api/<BooksController>
-        //[HttpDelete("{id}")]
-        //public void Delete(long id)
-        //{
-        //    Book _book = _context.Books.Where(x => x.Id.Equals(id)).FirstOrDefault();
-        //    _context.Books.Remove(_book);
-        //    _context.SaveChanges();
-        //}
+            var orders = await _db.WorkOrder.ToListAsync();
+            return Ok(orders);
+        }
     }
 }

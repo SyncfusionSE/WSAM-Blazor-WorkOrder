@@ -5,78 +5,105 @@
 @using Syncfusion.Blazor.Popups
 @using Syncfusion.Blazor.Inputs
 @using Syncfusion.Blazor.Calendars
-@using Microsoft.AspNetCore.Components.Forms;
 @using WorkOrderApp.Shared.Models
 @inject HttpClient Http
 
-@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
-
-<SfButton Content="Add Work Order" @onclick="AddWorkOrder"></SfButton>
-<SfButton Content="Update Work Order" @onclick="UpdateWorkOrder"></SfButton>
-<SfGrid @ref="GridRef" TValue="WorkOrder" AllowPaging="true" DataSource="OrderData">
+<div class="container mb-2">
+    <SfButton Content="Add Work Order" @onclick="AddWorkOrder"></SfButton>
+    <SfButton Content="Sync Work Orders" @onclick="SyncWorkOrders" Disabled="HasNoPendingOrders"></SfButton>
+    <SfButton Content="Clear Pending Orders" @onclick="ClearPendingWorkOrders" Disabled="HasNoPendingOrders"></SfButton>
+</div>
+<SfGrid @ref="WorkOrderGrid" TValue="WorkOrder" AllowPaging="true" DataSource="AllWorkOrders">
     <GridEditSettings AllowAdding="true" NewRowPosition="NewRowPosition.Bottom"></GridEditSettings>
     <GridPageSettings PageSize="5"></GridPageSettings>
     <GridColumns>
         <GridColumn Field=@nameof(WorkOrder.Title) HeaderText="Order Title" Width="120"></GridColumn>
         <GridColumn Field=@nameof(WorkOrder.OrderDate) HeaderText="Order Date" Format="d" Type="ColumnType.Date" TextAlign="TextAlign.Right" Width="130"></GridColumn>
         <GridColumn Field=@nameof(WorkOrder.Description) HeaderText="Summary" Width="120"></GridColumn>
-        <GridColumn Field=@nameof(WorkOrder.EstimatedHours) HeaderText="Esitmated Hours" Width="150"></GridColumn>
+        <GridColumn Field=@nameof(WorkOrder.EstimatedHours) HeaderText="Estimated Hours" Width="150"></GridColumn>
+        <GridColumn Field=@nameof(WorkOrder.Status) HeaderText="Status" Width="150"></GridColumn>
     </GridColumns>
 </SfGrid>
 <SfDialog Visible="Visibility" IsModal="true" Height="450px" Width="300px" ShowCloseIcon="true">
     <DialogTemplates>
         <Header> New Work Order </Header>
         <Content>
-            <EditForm Model="@NewOrder" OnValidSubmit="@SaveWorkOrder">
-                <DataAnnotationsValidator />
-                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Title" @bind-Value="@NewOrder.Title"></SfTextBox>
-                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Description" @bind-Value="@NewOrder.Description"></SfTextBox>
-                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Location" @bind-Value="@NewOrder.Location"></SfTextBox>
-                <SfDatePicker TValue="DateTime?" FloatLabelType="FloatLabelType.Always" Placeholder="Order Date" @bind-Value="@NewOrder.OrderDate"></SfDatePicker>
-                <SfNumericTextBox TValue="int?" FloatLabelType="FloatLabelType.Always" Placeholder="Estimated hours" @bind-Value="@NewOrder.EstimatedHours" Max="10" Min="1"></SfNumericTextBox>
+            <EditForm Model="@CurrentWorkOrder" OnValidSubmit="@SaveWorkOrder">
+                <DataAnnotationsValidator/>
+                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Title" @bind-Value="@CurrentWorkOrder.Title"></SfTextBox>
+                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Description" @bind-Value="@CurrentWorkOrder.Description"></SfTextBox>
+                <SfTextBox FloatLabelType="FloatLabelType.Always" Placeholder="Work Location" @bind-Value="@CurrentWorkOrder.Location"></SfTextBox>
+                <SfDatePicker TValue="DateTime?" FloatLabelType="FloatLabelType.Always" Placeholder="Order Date" @bind-Value="@CurrentWorkOrder.OrderDate"></SfDatePicker>
+                <SfNumericTextBox TValue="int?" FloatLabelType="FloatLabelType.Always" Placeholder="Estimated hours" @bind-Value="@CurrentWorkOrder.EstimatedHours" Max="10" Min="1"></SfNumericTextBox>
             </EditForm>
         </Content>
     </DialogTemplates>
     <DialogButtons>
-        <DialogButton IsPrimary="true" Content="Add" OnClick="@SaveWorkOrder" />
+        <DialogButton IsPrimary="true" Content="Add" OnClick="@SaveWorkOrder"/>
     </DialogButtons>
 
 </SfDialog>
 
 @code{
-    public bool Visibility = false;
-    public WorkOrder NewOrder = new WorkOrder();
-    public List<WorkOrder> NewOrder1 = new List<WorkOrder>();
-    public SfGrid<WorkOrder> GridRef;
-    public async Task SaveWorkOrder()
-    {
+    public bool Visibility;
+    public WorkOrder CurrentWorkOrder = new();
+    public SfGrid<WorkOrder> WorkOrderGrid;
+    public List<WorkOrder> AllWorkOrders { get; set; } = new();
 
-        Visibility = false;
-        NewOrder.OrderId = Guid.NewGuid();
-        NewOrder1.Add(NewOrder);
-        await localStorage.SetItemAsync<List<WorkOrder>>("NewOrder", NewOrder1);
-        await GridRef.AddRecordAsync(NewOrder1[0]);
-        NewOrder = new WorkOrder();
+    public bool HasNoPendingOrders => AllWorkOrders.Count(wo => wo.Status == "Pending") == 0; 
+    
+    private const string PendingWorkOrdersKey = nameof(PendingWorkOrdersKey); 
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var serverWorkOrders = await Http.GetFromJsonAsync<List<WorkOrder>>("api/WorkOrders");
+        var pendingWorkOrders = await LocalStorage.GetItemAsync<List<WorkOrder>>(PendingWorkOrdersKey) 
+                                ?? new List<WorkOrder>();
+        
+        // always make sure pending items are on top
+        AllWorkOrders = pendingWorkOrders.Union(serverWorkOrders ?? new ()).ToList();
     }
+
     void AddWorkOrder()
     {
         Visibility = true;
     }
-
-    async Task UpdateWorkOrder()
+    
+    async Task SaveWorkOrder()
     {
+        Visibility = false;
+        
+        AllWorkOrders.Insert(0, CurrentWorkOrder);
 
+        var pending = AllWorkOrders.Where(wo => wo.Status == "Pending").ToList();
+        // let's not lose any pending work
+        await LocalStorage.SetItemAsync(PendingWorkOrdersKey, pending);
+        
+        CurrentWorkOrder = new WorkOrder();
 
-        List<WorkOrder> storedData = await localStorage.GetItemAsync<List<WorkOrder>>("NewOrder");
-        await Http.PostAsJsonAsync<List<WorkOrder>>("WeatherForecast", storedData);
+        await WorkOrderGrid.Refresh();
     }
 
-    public List<WorkOrder> OrderData { get; set; }
-    protected override async Task OnInitializedAsync()
+    async Task SyncWorkOrders()
     {
-        OrderData = await Http.GetFromJsonAsync<List<WorkOrder>>("WeatherForecast");
+        var pending = await LocalStorage.GetItemAsync<List<WorkOrder>>(PendingWorkOrdersKey);
+        var response = await Http.PostAsJsonAsync("api/WorkOrders", pending);
 
+        AllWorkOrders = await response.Content.ReadFromJsonAsync<List<WorkOrder>>();
+
+        if (AllWorkOrders == null)
+            throw new Exception("API CALL FAILED");
+
+        await ClearPendingWorkOrders();
+    }
+
+    async Task ClearPendingWorkOrders()
+    {
+        AllWorkOrders.RemoveAll(p => p.Status == "Pending");
+        await LocalStorage.SetItemAsync(PendingWorkOrdersKey, new List<WorkOrder>());
+        await WorkOrderGrid.Refresh();
     }
 
 }
